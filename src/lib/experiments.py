@@ -1,32 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import copy
-import sys
-# import yaml
-# import yaml
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-# to avoid error:
-#     self.tk.call('image', 'delete', self.name)
-# RuntimeError: main thread is not in main loop
-# Tcl_AsyncDelete: async handler deleted by the wrong thread
-# import matplotlib
-# matplotlib.use('Agg')
-from sklearn.preprocessing import StandardScaler
-
 import matplotlib.pylab as plt
 import seaborn as sns
 import os
 
-src_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-sys.path.append(src_path)
-
 from src.lib.pdefind import PDEFinder, DataManager
 from src.lib.variables import Variable, Domain
-from src.lib.operators import PolyD, D, Poly, DataSplit, Delay, MultipleDelay, Identity, DataSplitIndexClip, \
-    DataSplitOnIndex
+from src.lib.operators import PolyD, D, Poly, DataSplit, Delay, MultipleDelay, Identity
 import src.lib.evaluators as evaluator
 from src.scripts.utils import evaluate_predictions, savefig, save_csv, load_csv, save, load, varname2latex
 from src.scripts import config

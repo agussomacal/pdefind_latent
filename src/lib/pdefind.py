@@ -1,6 +1,7 @@
 import copy
 import itertools
 import os
+import scipy
 import time
 from collections import OrderedDict
 
@@ -11,7 +12,7 @@ from scipy.integrate import odeint
 from sklearn.linear_model import LassoCV, Lasso, LinearRegression, ElasticNetCV
 from sklearn.preprocessing import StandardScaler
 import joblib
-import odespy
+# import odespy
 from tqdm import tqdm
 
 from src.lib.evaluators import rsquare, error
@@ -482,10 +483,11 @@ class PDEFinder:
                               new_dm.domain.step_width[ax_name])
 
                 # ode_func = get_func_for_ode(eq_x_sym_expression, eq_y_sym_expression)
-                solver = getattr(odespy, method)(ode_func)
-                # solver = method(ode_func)
-                solver.set_initial_condition(v0)
-                v, t = solver.solve(t)
+                # solver = getattr(odespy, method)(ode_func)
+                # # solver = method(ode_func)
+                # solver.set_initial_condition(v0)
+                # v, t = solver.solve(t)
+                v = scipy.integrate.odeint(func=ode_func, y0=v0, t=t)
                 # v = self.integrator_core(method, t, v0, get_func_for_ode, eq_x_sym_expression, eq_y_sym_expression)
                 # v = odeint(ode_func, v0, t, hmax=new_dm.domain.step_width["t"], hmin=new_dm.domain.step_width["t"],
                 #            h0=new_dm.domain.step_width["t"])
@@ -539,12 +541,7 @@ class PDEFinder:
                       t0 + (dery + horizon) * new_dm.domain.step_width[ax_name],
                       new_dm.domain.step_width[ax_name])
 
-        if 'RK4' in method:
-            solver = getattr(odespy, 'RK4')(ode_func)
-        else:
-            raise Exception('Method not odentified')
-        solver.set_initial_condition(v0)
-        v, t = solver.solve(t)
+        v = scipy.integrate.odeint(func=ode_func, y0=v0, t=t)
 
         if len(v.shape) == 1:
             v = v.reshape((-1, 1))
@@ -556,7 +553,7 @@ class PDEFinder:
 
         return df_pred
 
-    def integrate3(self, dm, t, v0, method='Euler'):
+    def integrate3(self, dm, t, v0):
         """
 
         :param split_data_operator_list:
@@ -574,37 +571,7 @@ class PDEFinder:
         ode_func = get_func_for_ode(eq_x_sym_expression.matmul(self.coefs_.T),
                                     eq_y_sym_expression, dm.regressors)
 
-        # split_data_operator = DataSplitIndexClip(axis_start_dict=starting_point, axis_len_dict={ax_name: 2*dery})
-        # new_dm = DataManager()
-        # new_dm.add_variables(split_data_operator * dm.field)
-        # new_dm.add_regressors(split_data_operator * dm.regressors)
-        # new_dm.set_X_operator(dm.X_operator)
-        # new_dm.set_y_operator(dm.y_operator)
-        # new_dm.set_domain()
-        #
-        # init_point = starting_point.copy()
-        # # get derivatives up to the unknown
-        # v0 = []
-        # term_names = []
-        # for sym_var, var in zip(new_dm.sym_field.data, new_dm.field.data):
-        #     terms = [var.name.diff(ax_name, i) for i in range(dery)]
-        #     v0_temp = (PolyD(derivative_order_dict={ax_name: dery - 1}) * var).evaluate_ix(init_point)
-        #     v0_temp = [v0_temp[str(f).replace(' ', '')] if i == 0 else v0_temp['1.0*' + str(f).replace(' ', '')] for
-        #                i, f in enumerate(terms)]
-        #     v0 += v0_temp
-        #     term_names += terms
-        #
-        # t0 = new_dm.domain.get_value_from_index(ax_name, init_point[ax_name])
-        # t = np.arange(t0,
-        #               t0 + (dery + horizon) * new_dm.domain.step_width[ax_name],
-        #               new_dm.domain.step_width[ax_name])
-
-        if 'RK4' in method:
-            solver = getattr(odespy, 'RK4')(ode_func)
-        else:
-            raise Exception('Method not odentified')
-        solver.set_initial_condition(v0)
-        v, t = solver.solve(t)
+        v = scipy.integrate.odeint(func=ode_func, y0=v0, t=t)
 
         if len(v.shape) == 1:
             v = v.reshape((-1, 1))

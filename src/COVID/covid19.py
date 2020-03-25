@@ -16,17 +16,17 @@ english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',
                         'Italia simulada': 'Italia simulada'}
 
 # periods = {
-#     'Italy': [Period(label='Sin medidas', fecha='8/3/2020'), Period(label='Medidas', fecha='')],
+#     'Italy': [Period(label='Sin medidas', fecha='9/3/2020'), Period(label='Medidas', fecha='')],
 #     'Spain': [Period(label='Sin medidas', fecha='14/3/2020'), Period(label='Medidas', fecha='')],
 #     'France': [Period(label='Sin medidas', fecha='16/3/2020'), Period(label='Medidas', fecha='')],
 #     'China': [Period(label='Sin medidas', fecha='10/2/2020'), Period(label='Medidas', fecha='')],
 #     'Italia simulada': [Period(label='Sin medidas', fecha='10/3/2020'), Period(label='Medidas', fecha='')],
 # }
 
-periods = {'Italy': [Period(label='Sin medidas', fecha='8/3/2020'), Period(label='Medidas', fecha='')],
+periods = {'Italy': [Period(label='Sin medidas', fecha='9/3/2020'), Period(label='Medidas', fecha='')],
            'Spain': [Period(label='Sin medidas', fecha='14/3/2020'), Period(label='Medidas', fecha='')],
            'France': [Period(label='Sin medidas', fecha='16/3/2020'), Period(label='Medidas', fecha='')],
-           'China': [Period(label='Sin medidas', fecha='10/2/2020'), Period(label='Medidas', fecha='')]}
+           'China': [Period(label='Sin medidas', fecha='3/2/2020'), Period(label='Medidas', fecha='20/2/2020')]}
 
 # ========================================================= #
 # ---------------------- parameters ----------------------- #
@@ -35,8 +35,8 @@ type_of_experiment = 'Test'  # name to save the files if we change specification
 filename = "COVID-19-geographic-disbtribution-worldwide-2020-03-24.xlsx"  # loading data
 # filename = "italia-simulada2.csv"
 
-
-countries = ['China', 'Italy']
+accepted_variables = ['Muertes', 'Casos']  # ['Muertes', 'Casos', 'Recuperados', 'Todos']
+countries = ['China']
 # countries = ['Italia simulada']
 # countries = ['France', 'Spain']
 # countries = ['Italy']
@@ -46,8 +46,8 @@ use_lasso = True  # use lasso to fit a general model. Otherwise is a linear regr
 # should be specified in operator_x and operator_y
 
 # ------- specifing general model -------
-target_derivative_order = 2  # diferential equation of order ...
-polynomial_order = 5  # order of polynomial combinations:
+target_derivative_order = 1  # diferential equation of order ...
+polynomial_order = 3  # order of polynomial combinations:
 # ej: poly=2 and targetder=2-> dictionary = [1, F, F', F^2, FF', F'^2] try to fit -> [F'']
 
 do_cumulative = True  # depende como venga la data, si es la suma de muertes hasta el momento => do_cumulative=False
@@ -62,12 +62,13 @@ days_before_meassure_to_gather_data = 0
 
 # ------ train and test sets ------
 ptrain = 1  # p=1 means all data is used for training. If p=0.7 the first 70% is used
-ptest = 0.7  # p=0.7 means the last 70% of the data is used for testing and the initial condition for predictions is
+init_condition = 0.3
+ptest = 1-init_condition  # p=0.7 means the last 70% of the data is used for testing and the initial condition for predictions is
 # taken then in exactly the 30% (because there is 70% at the right)
 
 # when predicting, predict all the test set (=1) and go to the future (>1). If 10 days are in the testset,
 # then =1.5 means 15 days of predictions
-prediction_horizon_proportion = {'Sin medidas': 1.2, 'Medidas': 1.3}
+prediction_horizon_proportion = {'Sin medidas': 1.4, 'Medidas': 1.4}
 
 if use_lasso:
     type_of_experiment = type_of_experiment + '_lasso'
@@ -77,11 +78,14 @@ if use_lasso:
     # defines the operator that generates the dictionary of functions that will be use to fit the target y operator.
     def x_operator_func(rational=False):
         def x_operator(field, regressors):
+            'field = [M, C]'
             new_field = copy.deepcopy(field)
             new_field = PolyD({'t': target_derivative_order - 1}) * new_field
+            "[M, C, M', C', M'', C'' ...]"
             if rational:
                 new_field.append(new_field.__rtruediv__(1.0))
             new_field = Poly(polynomial_order=polynomial_order) * new_field
+            "[1, M, C, M', C', M'', C'' ..., MC, MM'', MCM'...]"
             return new_field
 
         return x_operator
@@ -100,10 +104,16 @@ else:
 
     def x_operator_func(rational=False):
         def x_operator(field, regressors):
-            new_field = D(1, 't') * field
-            new_field.append(((D(1, 't') * field) ** 2))
-            new_field.append((field * (D(1, 't') * field)))
+            new_field = D(1, 't') * field  # M'
+            new_field.append(((D(1, 't') * field) ** 2))   # (M')^2
+            new_field.append((field * (D(1, 't') * field)))  # MM'
             return new_field
+
+        # equación diferencial
+        # M'' = a*M' + b*M'^2 + c*MM'
+        # y = <c_vect, X_vect>
+        # Xvect = (M', M'^2, MM')
+        # c_vect = (a, b, c)
 
         return x_operator
 
@@ -129,4 +139,5 @@ run_model(filename=filename,
           trainSplit=DataSplit(axis_percentage_dict={"t": ptrain}),
           testSplit=DataSplit(axis_percentage_dict={"t": ptest}, axis_init_percentage_dict={"t": 1 - ptest}),
           x_operator_func=x_operator_func,
-          y_operator_func=y_operator_func)
+          y_operator_func=y_operator_func,
+          accepted_variables=accepted_variables)

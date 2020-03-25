@@ -31,6 +31,9 @@ english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',
                         'Italia simulada': 'Italia simulada'}
 
 
+spanish2english_dict = {'Muertes': '[Deaths(t)]', 'Casos': '[Cases(t)]', 'Recuperados': '[Healed(t)]'}
+
+
 def mse(x, y):
     return np.sum((np.asarray(x).ravel() - np.asarray(y).ravel()) ** 2)
 
@@ -38,7 +41,7 @@ def mse(x, y):
 class CovidExperimentSetting(ExperimentSetting):
     def __init__(self, filename, experiment_name, type_of_experiment, countries, prediction_horizon_proportion,
                  death_threshold_2_begin=0, recalculate=False, cumulative=True, periods={},
-                 days_before_meassure_to_gather_data=0):
+                 days_before_meassure_to_gather_data=0, accepted_variables=['[Deaths(t)]']):
         ExperimentSetting.__init__(self, experiment_name=experiment_name)
 
         self.prediction_horizon_proportion = prediction_horizon_proportion
@@ -55,6 +58,7 @@ class CovidExperimentSetting(ExperimentSetting):
         self.cumulative = cumulative
         self.death_threshold_2_begin = death_threshold_2_begin
         self.info = {}
+        self.accepted_variables = [spanish2english_dict[av] for av in accepted_variables]
 
     def get_country_data(self):
         data_filename = '{}/data_covid19/{}'.format(
@@ -186,7 +190,7 @@ class CovidExperimentSetting(ExperimentSetting):
             for variable in [variable for variable in self.get_variables()] + [self.get_variables()]:
                 variable = Field(variable)
                 base_name = str(variable)
-                if base_name != '[Deaths(t)]':
+                if base_name not in self.accepted_variables:
                     continue
                 print('\nVariable {}'.format(base_name))
 
@@ -262,8 +266,7 @@ class CovidExperimentSetting(ExperimentSetting):
                 v0 = [data_manager_test.field.data[0].data[0], r]
                 predictions_temp = pde_finder.integrate3(dm=data_manager_test,
                                                          t=t,
-                                                         v0=v0,
-                                                         method='RK4')
+                                                         v0=v0)
                 loss = mse(predictions_temp[var_name].values[np.arange(data_manager_test.field.data[0].shape[0])],
                             data_manager_test.field.data[0].data)
                 if loss_best > loss:
@@ -353,7 +356,7 @@ class CovidExperimentSetting(ExperimentSetting):
 
 def run_model(filename, experiment_name, type_of_experiment, countries, periods, death_threshold_2_begin, cumulative,
               days_before_meassure_to_gather_data, prediction_horizon_proportion, with_mean, with_std, use_lasso,
-              trainSplit, testSplit, x_operator_func, y_operator_func):
+              trainSplit, testSplit, x_operator_func, y_operator_func, accepted_variables):
     experiment = CovidExperimentSetting(filename=filename,
                                         experiment_name=experiment_name,
                                         type_of_experiment=type_of_experiment,
@@ -363,7 +366,8 @@ def run_model(filename, experiment_name, type_of_experiment, countries, periods,
                                         cumulative=cumulative,
                                         periods=periods,
                                         days_before_meassure_to_gather_data=days_before_meassure_to_gather_data,
-                                        prediction_horizon_proportion=prediction_horizon_proportion)
+                                        prediction_horizon_proportion=prediction_horizon_proportion,
+                                        accepted_variables=accepted_variables)
 
     experiment.set_plotting_params(sub_set_init=100, sub_set_len=100)
     experiment.set_pdefind_params(with_mean=with_mean, with_std=with_std, alphas=100, max_iter=10000, cv=5,

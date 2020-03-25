@@ -314,10 +314,10 @@ class ExperimentSetting:
         for poly_degree in poly2explore:
             print("\n---------------------")
             print("Polynomial degree: {}".format(poly_degree))
-            print "Derivative order:",
+            print("Derivative order:", end='')
 
             for derivative_depth in derivatives2explore:
-                print " {}".format(derivative_depth),
+                print(" {}".format(derivative_depth), end='')
                 data_manager = self.get_data_manager()
                 data_manager.set_X_operator(getXfunc(derivative_depth, poly_degree, rational=rational))
                 data_manager.set_y_operator(
@@ -374,10 +374,10 @@ class ExperimentSetting:
         for poly_degree in poly2explore:
             print("\n---------------------")
             print("Polynomial degree: {}".format(poly_degree))
-            print "Delay order:",
+            print("Delay order:", end='')
 
             for delay_in_y in delays2explore:
-                print " {}".format(delay_in_y),
+                print(" {}".format(delay_in_y), end='')
                 data_manager = self.get_data_manager()
                 data_manager.set_X_operator(get_x_operator_func_delay(delay_in_y, poly_degree, rational=rational))
                 data_manager.set_y_operator(lambda field: Delay(delay=derivative_in_y, axis_name='t') * field)
@@ -463,9 +463,9 @@ class ExperimentSetting:
         for measure_dt in discretization_range:
             print("\n---------------------")
             print("meassure dt: {}".format(measure_dt))
-            print "Noise: ",
+            print("Noise: ", end='')
             for noise in noise_range:
-                print noise,
+                print(noise, end='')
                 # choose steps with bigger dt; and sum normal noise.
                 new_t = data_manager.domain.get_range("t")['t'][::measure_dt]
                 domain_temp = Domain(lower_limits_dict={"t": np.min(new_t)},

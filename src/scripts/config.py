@@ -1,7 +1,7 @@
 import os
 
-project_dir = os.path.abspath(__file__).split('ret-ode')[0]+'ret-ode/'
-plots_dir = project_dir + "results/"
+project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+plots_dir = project_dir + "/results/"
 # plots_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + "/#plots/"
 
 

@@ -28,7 +28,7 @@ from src.lib.evaluators import evaluate_predictions, oracle, evaluate_integrator
 import src.lib.evaluators as evaluator
 import src.lib.visualization as viz
 
-from config import get_filename
+from src.scripts.config import get_filename
 
 
 def varname2latex(var_name, derivative=0):

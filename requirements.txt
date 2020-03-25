@@ -8,5 +8,5 @@ pandas
 sympy
 pytest
 joblib
-opencv-python
+# opencv-python
 tqdm

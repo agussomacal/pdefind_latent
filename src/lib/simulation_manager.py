@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from scipy.integrate import odeint
-import odespy
 
 
 class DifferentialModels:
@@ -129,17 +128,23 @@ class Integrator:
     """
     Integrador de ecuaciones diferenciales
     """
-    def __init__(self, model, odespy_method=odespy.RK4):
+    def __init__(self, model):
         self.model = model
-        self.odespy_method = odespy_method
 
-    def integrate_odespy(self, initial_conditions, time_points):  # -> pd.DataFrame()
-        solver = self.odespy_method(self.model.odespy_func())
-        solver.set_initial_condition(initial_conditions)
-        u, t = solver.solve(time_points)
-        sol = pd.DataFrame(u, columns=self.model.var_names, index=t)
-        sol.index.name = 't'
-        return sol
+    # def integrate_odespy(self, initial_conditions, time_points):  # -> pd.DataFrame()
+    #     solver = self.odespy_method(self.model.odespy_func())
+    #     solver.set_initial_condition(initial_conditions)
+    #     u, t = solver.solve(time_points)
+    #     sol = pd.DataFrame(u, columns=self.model.var_names, index=t)
+    #     sol.index.name = 't'
+    #     return sol
+
+    @staticmethod
+    def integrate_odespy(model=LorenzAttractor, Xinit=np.array([1, 1, 1]), time_steps=1000, integration_dt=0.01):
+        def ode_func(x, t):
+            return model.get_dt(x)
+        X_trayectory = odeint(ode_func, Xinit, t=np.linspace(0, time_steps*integration_dt, time_steps))
+        return X_trayectory
 
     @staticmethod
     def integrate_solver(model=LorenzAttractor, Xinit=np.array([1, 1, 1]), time_steps=1000, integration_dt=0.01):

@@ -1,5 +1,4 @@
 numpy
-# rpy2==2.8.6
 h5py
 matplotlib
 seaborn
@@ -9,13 +8,5 @@ pandas
 sympy
 pytest
 joblib
-# pyemd
 opencv-python
-# typing
 tqdm
-# sudo apt-get install gfortran
-# pip install -e git+https://github.com/hplgit/odespy.git#egg=odespy
-# if fails because --no-fortran is needed
-# git clone git@github.com:hplgit/odespy.git
-# cd venv/src/odespy
-# python setup.py install --no-fortran

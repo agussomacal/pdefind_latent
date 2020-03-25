@@ -184,6 +184,7 @@ class CovidExperimentSetting(ExperimentSetting):
             self.set_underlying_model(df)
 
             for variable in [variable for variable in self.get_variables()] + [self.get_variables()]:
+                stats = pd.DataFrame([])
                 variable = Field(variable)
                 base_name = str(variable)
                 if base_name not in self.accepted_variables:
@@ -202,16 +203,17 @@ class CovidExperimentSetting(ExperimentSetting):
                 data_manager.set_X_operator(x_operator_func(rational=rational))
                 data_manager.set_y_operator(y_operator_func())
                 pde_finder = self.fit_eqdifff(data_manager)
-                self.stats = pd.concat([self.stats, pd.concat([pde_finder.coefs_,
-                                                               pd.DataFrame([country, period.label, period.fecha],
-                                                                            columns=pde_finder.coefs_.index,
-                                                                            index=['country', 'medidas',
-                                                                                   'fecha_final'])],
+                stats = pd.concat([stats, pd.concat([pd.DataFrame([[country, period.label, period.fecha]],
+                                                                            index=pde_finder.coefs_.index,
+                                                                            columns=['country', 'medidas',
+                                                                                   'fecha_final']),
+                                                               pde_finder.coefs_],
                                                               axis=1)], axis=0)
                 # ---------- plot ----------
                 with savefig('{}_{}_coeficients.png'.format(base_name, country), self.experiment_name,
                              subfolders=subfolders, format='png'):
                     self.plot_coefficients(pde_finder)
+                    plt.xscale('log')
 
                 with savefig('{}_{}_fitvsreal.png'.format(base_name, country), self.experiment_name,
                              subfolders=subfolders, format='png'):
@@ -227,7 +229,7 @@ class CovidExperimentSetting(ExperimentSetting):
                                                       'predictions': predictions_temp,
                                                       'data_raw': df})
 
-                self.stats.to_csv(config.get_filename(filename='coefs.csv',
+                stats.to_csv(config.get_filename(filename='{}_coefs.csv'.format(base_name),
                                                       experiment=self.experiment_name,
                                                       subfolders=[self.type_of_experiment]))
                 self.plot_results()

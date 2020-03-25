@@ -23,7 +23,7 @@ english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',
 #     'Italia simulada': [Period(label='Sin medidas', fecha='10/3/2020'), Period(label='Medidas', fecha='')],
 # }
 
-periods = {'Italy': [Period(label='Sin medidas', fecha='9/3/2020'), Period(label='Medidas', fecha='')],
+periods = {'Italy': [Period(label='Sin medidas', fecha='8/3/2020'), Period(label='Medidas', fecha='')],
            'Spain': [Period(label='Sin medidas', fecha='14/3/2020'), Period(label='Medidas', fecha='')],
            'France': [Period(label='Sin medidas', fecha='16/3/2020'), Period(label='Medidas', fecha='')],
            'China': [Period(label='Sin medidas', fecha='3/2/2020'), Period(label='Medidas', fecha='20/2/2020')]}
@@ -31,12 +31,12 @@ periods = {'Italy': [Period(label='Sin medidas', fecha='9/3/2020'), Period(label
 # ========================================================= #
 # ---------------------- parameters ----------------------- #
 experiment_name = 'COVID19'
-type_of_experiment = 'Test'  # name to save the files if we change specifications.
+type_of_experiment = 'Casos'  # name to save the files if we change specifications.
 filename = "COVID-19-geographic-disbtribution-worldwide-2020-03-24.xlsx"  # loading data
 # filename = "italia-simulada2.csv"
 
-accepted_variables = ['Muertes', 'Casos']  # ['Muertes', 'Casos', 'Recuperados', 'Todos']
-countries = ['China']
+accepted_variables = ['Muertes']  # ['Muertes', 'Casos', 'Recuperados', 'Todos']
+countries = ['Italy']
 # countries = ['Italia simulada']
 # countries = ['France', 'Spain']
 # countries = ['Italy']
@@ -46,14 +46,14 @@ use_lasso = True  # use lasso to fit a general model. Otherwise is a linear regr
 # should be specified in operator_x and operator_y
 
 # ------- specifing general model -------
-target_derivative_order = 1  # diferential equation of order ...
-polynomial_order = 3  # order of polynomial combinations:
+target_derivative_order = 2  # diferential equation of order ...
+polynomial_order = 5  # order of polynomial combinations:
 # ej: poly=2 and targetder=2-> dictionary = [1, F, F', F^2, FF', F'^2] try to fit -> [F'']
 
 do_cumulative = True  # depende como venga la data, si es la suma de muertes hasta el momento => do_cumulative=False
 # porque ya viene acumulada. Sino True. Para COVID-19-geographic-disbtribution-worldwide-2020-03-22.xlsx hay que usar
 # True porque no viene acumulada, son los casos por día.
-death_threshold_2_begin = 2  # para sacarse de encima los días iniciales con 0 muertes/casos donde la epidemia
+death_threshold_2_begin = 1  # para sacarse de encima los días iniciales con 0 muertes/casos donde la epidemia
 # aún no comenzó. A partir de qque encuentra un día con ese valor a partir de ahi toma los datos.
 
 # sometimes there is too few data after measures then, a hardcoded shift to gather some days (ej 5) before the measure
@@ -62,7 +62,7 @@ days_before_meassure_to_gather_data = 0
 
 # ------ train and test sets ------
 ptrain = 1  # p=1 means all data is used for training. If p=0.7 the first 70% is used
-init_condition = 0.3
+init_condition = 0.7
 ptest = 1-init_condition  # p=0.7 means the last 70% of the data is used for testing and the initial condition for predictions is
 # taken then in exactly the 30% (because there is 70% at the right)
 

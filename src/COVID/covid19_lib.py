@@ -14,16 +14,12 @@ matplotlib.use('Agg')
 import matplotlib.pylab as plt
 import pandas as pd
 import numpy as np
-from scipy import signal
 
-from datetime import date
 import src.scripts.config as config
-from src.scripts.rte_data_manager import preprocess
 from src.lib.variables import Variable, Domain, Field
-from src.lib.operators import DataSplit, PolyD, D, Poly
 
 from src.lib.experiments import ExperimentSetting
-from src.scripts.utils import Trigonometric, savefig
+from src.scripts.utils import savefig
 
 Period = namedtuple('Period', ['label', 'fecha'])
 english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',

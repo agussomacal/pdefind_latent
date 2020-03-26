@@ -5,6 +5,8 @@ import os
 from collections import namedtuple
 
 import matplotlib
+from scipy.signal import savgol_filter
+
 from lib.evaluators import timeit
 from lib.pdefind import DataManager, PDEFinder
 from tqdm import tqdm
@@ -37,9 +39,10 @@ def mse(x, y):
 class CovidExperimentSetting(ExperimentSetting):
     def __init__(self, filename, experiment_name, type_of_experiment, countries, prediction_horizon_proportion,
                  death_threshold_2_begin=0, recalculate=False, cumulative=True, periods={},
-                 days_before_meassure_to_gather_data=0, accepted_variables=['[Deaths(t)]']):
+                 days_before_meassure_to_gather_data=0, accepted_variables=['[Deaths(t)]'], smoothe=False):
         ExperimentSetting.__init__(self, experiment_name=experiment_name)
 
+        self.smoothe = smoothe
         self.prediction_horizon_proportion = prediction_horizon_proportion
         self.type_of_experiment = type_of_experiment
         self.days_before_meassure_to_gather_data = days_before_meassure_to_gather_data
@@ -103,6 +106,8 @@ class CovidExperimentSetting(ExperimentSetting):
             else:
                 continue
             country_data = country_data.sort_values(by='DateRep')
+            if self.smoothe:
+                country_data[['Deaths', 'Cases']].apply(lambda c: savgol_filter(c, 5, 2)) # window size 51, polynomial order 3)
             if self.cumulative:
                 country_data['Deaths'] = country_data['Deaths'].cumsum()
                 country_data['Cases'] = country_data['Cases'].cumsum()
@@ -208,7 +213,7 @@ class CovidExperimentSetting(ExperimentSetting):
                                                                   columns=['country', 'medidas',
                                                                            'fecha_final']),
                                                      pde_finder.coefs_],
-                                                    axis=1)], axis=0)
+                                                    axis=1)], axis=0, sort=True)
                 # ---------- plot ----------
                 with savefig('{}_{}_coeficients.png'.format(base_name, country), self.experiment_name,
                              subfolders=subfolders, format='png'):
@@ -319,12 +324,12 @@ class CovidExperimentSetting(ExperimentSetting):
 
                             # ------------------ plot real ------------------
                             lab = 'Data real {} for train'.format(var_name.lower())
-                            real += var.data.tolist()
+                            real2use = var.data.tolist()
+                            real += real2use
                             dt = var.domain.step_width['t']
-                            t_real += np.arange(var.domain.lower_limits['t'], var.domain.upper_limits['t'] + dt,
-                                                dt).tolist()
-                            t_real = info['data_raw'].loc[info['data_raw']['total_days'].isin(t_real), 'DateRep']
-                            lines[lab], = temp_ax.plot(t_real, real, '.-', c='k', label=lab)
+                            t_real += np.arange(var.domain.lower_limits['t'], var.domain.upper_limits['t'] + dt, dt).tolist()
+                            t_real2use = info['data_raw'].loc[info['data_raw']['total_days'].isin(t_real), 'DateRep']
+                            lines[lab], = temp_ax.plot(t_real2use, real2use, '.-', c='k', label=lab)
 
                             # ------------------ plot prediction ------------------
                             lab = 'Predictcion {}'.format(info['period'].label.lower())
@@ -340,8 +345,8 @@ class CovidExperimentSetting(ExperimentSetting):
                             tosave = info['predictions']
                             tosave['real'] = np.nan
 
-                            tosave.loc[[True if j in t_real.tolist() else False for j in t], 'real'] \
-                                = [r for j, r in zip(t_real, real) if j in t]
+                            tosave.loc[[True if j in t_real2use.tolist() else False for j in t], 'real'] \
+                                = [r for j, r in zip(t_real2use, real) if j in t]
                             tosave.to_csv(
                                 config.get_filename(
                                     filename='{}_predictions_{}_{}.csv'.format('_'.join(var_names), info['period'].label.lower(), var_name),
@@ -365,7 +370,7 @@ class CovidExperimentSetting(ExperimentSetting):
 
 def run_model(filename, experiment_name, type_of_experiment, countries, periods, death_threshold_2_begin, cumulative,
               days_before_meassure_to_gather_data, prediction_horizon_proportion, with_mean, with_std, use_lasso,
-              trainSplit, testSplit, x_operator_func, y_operator_func, accepted_variables):
+              trainSplit, testSplit, x_operator_func, y_operator_func, accepted_variables, smoothe):
     experiment = CovidExperimentSetting(filename=filename,
                                         experiment_name=experiment_name,
                                         type_of_experiment=type_of_experiment,
@@ -376,7 +381,8 @@ def run_model(filename, experiment_name, type_of_experiment, countries, periods,
                                         periods=periods,
                                         days_before_meassure_to_gather_data=days_before_meassure_to_gather_data,
                                         prediction_horizon_proportion=prediction_horizon_proportion,
-                                        accepted_variables=accepted_variables)
+                                        accepted_variables=accepted_variables,
+                                        smoothe=smoothe)
 
     experiment.set_plotting_params(sub_set_init=100, sub_set_len=100)
     experiment.set_pdefind_params(with_mean=with_mean, with_std=with_std, alphas=100, max_iter=10000, cv=5,

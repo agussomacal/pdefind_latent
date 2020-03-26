@@ -26,7 +26,7 @@ english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',
 periods = {'Italy': [Period(label='Sin medidas', fecha='8/3/2020'), Period(label='Medidas', fecha='')],
            'Spain': [Period(label='Sin medidas', fecha='14/3/2020'), Period(label='Medidas', fecha='')],
            'France': [Period(label='Sin medidas', fecha='16/3/2020'), Period(label='Medidas', fecha='')],
-           'China': [Period(label='Sin medidas', fecha='3/2/2020'), Period(label='Medidas', fecha='')]}#20/2/2020
+           'China': [Period(label='Sin medidas', fecha='10/2/2020'), Period(label='Medidas', fecha='')]}#20/2/2020
 
 
 # periods = {'Italy': [Period(label='Periodo completo', fecha='')],
@@ -37,23 +37,23 @@ periods = {'Italy': [Period(label='Sin medidas', fecha='8/3/2020'), Period(label
 # ========================================================= #
 # ---------------------- parameters ----------------------- #
 experiment_name = 'COVID19'
-type_of_experiment = 'Casos'  # name to save the files if we change specifications.
+type_of_experiment = 'Italia'  # name to save the files if we change specifications.
 filename = "COVID-19-geographic-disbtribution-worldwide-2020-03-24.xlsx"  # loading data
 # filename = "italia-simulada2.csv"
 
 accepted_variables = ['Muertes', 'Casos']  # ['Muertes', 'Casos', 'Recuperados', 'Todas']
-countries = ['China', 'Italia']
+countries = ['China']
 # countries = ['Italia simulada']
 # countries = ['France', 'Spain']
 # countries = ['Italy']
 # countries = ['Italy']
 
-use_lasso = True  # use lasso to fit a general model. Otherwise is a linear regression over the specific model that
+use_lasso = False  # use lasso to fit a general model. Otherwise is a linear regression over the specific model that
 # should be specified in operator_x and operator_y
 
 # ------- specifing general model -------
 target_derivative_order = 2  # diferential equation of order ...
-polynomial_order = 5  # order of polynomial combinations:
+polynomial_order = 4  # order of polynomial combinations:
 # ej: poly=2 and targetder=2-> dictionary = [1, F, F', F^2, FF', F'^2] try to fit -> [F'']
 
 do_cumulative = True  # depende como venga la data, si es la suma de muertes hasta el momento => do_cumulative=False
@@ -69,7 +69,7 @@ suavizar_data = True
 
 # ------ train and test sets ------
 ptrain = 1  # p=1 means all data is used for training. If p=0.7 the first 70% is used
-init_condition = 0.7
+init_condition = 0.5
 ptest = 1-init_condition  # p=0.7 means the last 70% of the data is used for testing and the initial condition for predictions is
 # taken then in exactly the 30% (because there is 70% at the right)
 
@@ -127,7 +127,7 @@ else:
     # defines the operator that generates the target y operator.
     def y_operator_func():
         def y_operator(field):
-            return D(derivative_order=target_derivative_order, axis_name='t') * field
+            return D(derivative_order=2, axis_name='t') * field
 
         return y_operator
 

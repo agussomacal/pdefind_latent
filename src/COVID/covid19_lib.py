@@ -23,11 +23,11 @@ from src.scripts.utils import savefig
 
 Period = namedtuple('Period', ['label', 'fecha'])
 english2spanish_dict = {'[Deaths(t)]': 'Muertes', '[Cases(t)]': 'Casos',
+                        'Deaths': 'Muertes', 'Cases': 'Casos',
                         'Italy': 'Italia', 'China': 'China', 'France': 'Francia', 'Spain': 'España',
                         'Italia simulada': 'Italia simulada'}
 
-
-spanish2english_dict = {'Muertes': '[Deaths(t)]', 'Casos': '[Cases(t)]', 'Recuperados': '[Healed(t)]'}
+spanish2english_dict = {'Muertes': '[Deaths(t)]', 'Casos': '[Cases(t)]', 'Recuperados': '[Healed(t)]', 'Todas': 'all'}
 
 
 def mse(x, y):
@@ -175,6 +175,7 @@ class CovidExperimentSetting(ExperimentSetting):
 
     def explore(self, x_operator_func, y_operator_func, rational=False):
         subfolders = [self.type_of_experiment]
+        stats = pd.DataFrame([])
         for df, country, period in self.get_country_data():
             print('\n\n========== ========== ========== ==========')
             print('Exploring {}'.format(country))
@@ -183,11 +184,10 @@ class CovidExperimentSetting(ExperimentSetting):
 
             self.set_underlying_model(df)
 
-            for variable in [variable for variable in self.get_variables()] + [self.get_variables()]:
-                stats = pd.DataFrame([])
+            for variable in [self.get_variables()] + [variable for variable in self.get_variables()]:
                 variable = Field(variable)
                 base_name = str(variable)
-                if base_name not in self.accepted_variables:
+                if 'all' not in self.accepted_variables and base_name not in self.accepted_variables:
                     continue
                 print('\nVariable {}'.format(base_name))
 
@@ -204,11 +204,11 @@ class CovidExperimentSetting(ExperimentSetting):
                 data_manager.set_y_operator(y_operator_func())
                 pde_finder = self.fit_eqdifff(data_manager)
                 stats = pd.concat([stats, pd.concat([pd.DataFrame([[country, period.label, period.fecha]],
-                                                                            index=pde_finder.coefs_.index,
-                                                                            columns=['country', 'medidas',
-                                                                                   'fecha_final']),
-                                                               pde_finder.coefs_],
-                                                              axis=1)], axis=0)
+                                                                  index=pde_finder.coefs_.index,
+                                                                  columns=['country', 'medidas',
+                                                                           'fecha_final']),
+                                                     pde_finder.coefs_],
+                                                    axis=1)], axis=0)
                 # ---------- plot ----------
                 with savefig('{}_{}_coeficients.png'.format(base_name, country), self.experiment_name,
                              subfolders=subfolders, format='png'):
@@ -230,8 +230,8 @@ class CovidExperimentSetting(ExperimentSetting):
                                                       'data_raw': df})
 
                 stats.to_csv(config.get_filename(filename='{}_coefs.csv'.format(base_name),
-                                                      experiment=self.experiment_name,
-                                                      subfolders=[self.type_of_experiment]))
+                                                 experiment=self.experiment_name,
+                                                 subfolders=[self.type_of_experiment]))
                 self.plot_results()
 
     def optimize_predictions(self, pde_finder, variable, x_operator_func, y_operator_func, data_manager, period,
@@ -250,23 +250,26 @@ class CovidExperimentSetting(ExperimentSetting):
                               period.label],
                           data_manager.domain.step_width['t'])
 
-            der1 = (data_manager_test.field.data[0].data[1] - data_manager_test.field.data[0].data[0]) / \
-                   data_manager_test.domain.step_width['t']
-            der2 = (data_manager_test.field.data[0].data[2] - data_manager_test.field.data[0].data[0]) / \
-                   data_manager_test.domain.step_width['t'] / 2
+            nrand = 15
+            init = [[] for _ in range(nrand + 3)]
+            for var in data_manager_test.field.data:
+                der1 = (var.data[1] - var.data[0]) / var.domain.step_width['t']
+                der2 = (var.data[2] - var.data[0]) / var.domain.step_width['t'] / 2
+                der_init = np.random.normal(loc=(der1 + der2) / 2, scale=np.abs(der1 - der2) / 2,
+                                            size=nrand).tolist() + [der1, der2, (der1 + der2) / 2]
+                val_init = [var.data[0]] * len(der_init)
+                for i, (v, d) in enumerate(zip(val_init, der_init)):
+                    init[i] += [v, d]
 
-            var_name = str(data_manager_test.field.data[0])
             loss_best = np.Inf
-            predictions = []
+            predictions = pd.DataFrame(0, columns=[str(v) for v in data_manager_test.field.data], index=t)
             # random around the derivative to get the initial conditions beetter matchin g with observations.
-            for r in tqdm(np.random.normal(loc=(der1 + der2) / 2, scale=np.abs(der1 - der2) / 2, size=20).tolist() +
-                          [der1, der2, (der1 + der2) / 2], desc='Optimizing predictions'):
-                v0 = [data_manager_test.field.data[0].data[0], r]
-                predictions_temp = pde_finder.integrate3(dm=data_manager_test,
-                                                         t=t,
-                                                         v0=v0)
-                loss = mse(predictions_temp[var_name].values[np.arange(data_manager_test.field.data[0].shape[0])],
-                            data_manager_test.field.data[0].data)
+            for v0 in tqdm(init, desc='Optimizing predictions'):
+                predictions_temp = pde_finder.integrate3(dm=data_manager_test, t=t, v0=v0)
+
+                loss = 0
+                for var in data_manager_test.field.data:
+                    loss += mse(predictions_temp[str(var)].values[np.arange(var.shape[0])], var.data)
                 if loss_best > loss:
                     predictions = predictions_temp
 
@@ -274,82 +277,90 @@ class CovidExperimentSetting(ExperimentSetting):
 
     def plot_results(self):
         for country, vars_info in self.info.items():
-            for var, list_info in vars_info.items():
-                original_var_name = str(list_info[0]['data_real'])
-                var_name = english2spanish_dict[original_var_name]
+            for _, list_info in vars_info.items():
+                # ------ original data ------
+                country_data = self.df_data.loc[self.df_data['Countries and territories'] == country, :]
+                country_data = country_data.sort_values(by='DateRep')
+                if self.cumulative:
+                    country_data['Deaths'] = country_data['Deaths'].cumsum()
+                    country_data['Cases'] = country_data['Cases'].cumsum()
+
+                original_var_names = [str(var)[:-3] for var in list_info[0]['data_real'].data]
+                var_names = [english2spanish_dict[v] for v in original_var_names]
                 lines = {}
-                with savefig('{}_predict_{}.png'.format(country, var_name), self.experiment_name,
+                with savefig('{}_predict_{}.png'.format(country, '_'.join(var_names)), self.experiment_name,
                              subfolders=[self.type_of_experiment], format='png'):
-                    plt.title(english2spanish_dict[country] + ' ' + var_name.lower())
+                    nvars = len(original_var_names)
+                    fig, ax = plt.subplots(ncols=nvars, nrows=1, figsize=(8 * nvars, 8))
+                    if nvars == 1:
+                        ax = [ax]
 
-                    # ------ plot real ------
-                    country_data = self.df_data.loc[self.df_data['Countries and territories'] == country, :]
-                    country_data = country_data.sort_values(by='DateRep')
-                    if self.cumulative:
-                        country_data['Deaths'] = country_data['Deaths'].cumsum()
-                        country_data['Cases'] = country_data['Cases'].cumsum()
+                    for i, (temp_ax, original_var_name, var_name) in enumerate(zip(ax, original_var_names, var_names)):
+                        temp_ax.set_title(english2spanish_dict[country] + ' ' + var_name.lower())
+                        temp_ax.set_xlabel('Time')
+                        temp_ax.set_ylabel(var_name)
 
-                    lab = 'Data real {}'.format(var_name.lower())
-                    lines[lab], = plt.plot(country_data['DateRep'], country_data[original_var_name[1:-4]], '.-',
-                                           c='tab:green', label=lab)
+                        # ------------------ plot real ------------------
+                        lab = 'Data real {}'.format(var_name.lower())
+                        lines[lab], = temp_ax.plot(country_data['DateRep'], country_data[original_var_name], '.-',
+                                               c='tab:green', label=lab)
 
-                    plt.xlabel('Time')
-                    plt.ylabel(var_name)
-
-                    # xmin = np.Inf
-                    ymax = 0
-                    for info in list_info:
-                        ymax = np.max((ymax, max([d.data.max() * 2 for d in info['data_real'].data])))
-                        # xmin = np.min((xmin, min([d.data.min() for d in info['data_real'].data])))
-
-                        # plt.xlim(left=xmin)
-                        plt.ylim((0, ymax))
-
+                        # xmin = np.Inf
                         real = []
                         t_real = []
-                        for var in info['data_real'].data:
+                        ymax = 0
+                        for info in list_info:
+                            var = info['data_real'].data[i]
+                            ymax = np.max((ymax, var.data.max() * 2))
+                            # xmin = np.min((xmin, min([d.data.min() for d in info['data_real'].data])))
+
+                            # plt.xlim(left=xmin)
+                            temp_ax.set_ylim((0, ymax))
+
+                            # ------------------ plot real ------------------
                             lab = 'Data real {} for train'.format(var_name.lower())
                             real += var.data.tolist()
                             dt = var.domain.step_width['t']
                             t_real += np.arange(var.domain.lower_limits['t'], var.domain.upper_limits['t'] + dt,
                                                 dt).tolist()
                             t_real = info['data_raw'].loc[info['data_raw']['total_days'].isin(t_real), 'DateRep']
-                            lines[lab], = plt.plot(t_real, real, '.-', c='k', label=lab)
+                            lines[lab], = temp_ax.plot(t_real, real, '.-', c='k', label=lab)
 
-                        for var in info['data_real'].data:
+                            # ------------------ plot prediction ------------------
                             lab = 'Predictcion {}'.format(info['period'].label.lower())
                             tmin = info['data_raw'].loc[
-                                info['data_raw']['total_days'].isin(info['predictions'].index), 'DateRep'].values.min()
+                                info['data_raw']['total_days'].isin(
+                                    info['predictions'].index), 'DateRep'].values.min()
                             t = pd.date_range(tmin, periods=info['predictions'].shape[0], freq='D')
 
-                            lines[lab], = plt.plot(t,
+                            lines[lab], = temp_ax.plot(t,
                                                    info['predictions'].loc[:, str(var)].values, '-',
                                                    label=lab)
 
                             tosave = info['predictions']
                             tosave['real'] = np.nan
 
-                            tosave.loc[[True if i in t_real.tolist() else False for i in t], 'real'] = [r for i, r in
-                                                                                                        zip(t_real,
-                                                                                                            real) if
-                                                                                                        i in t]
+                            tosave.loc[[True if j in t_real.tolist() else False for j in t], 'real'] \
+                                = [r for j, r in zip(t_real, real) if j in t]
                             tosave.to_csv(
-                                config.get_filename(filename='predictions_{}.csv'.format(info['period'].label.lower()),
-                                                    experiment=self.experiment_name,
-                                                    subfolders=[self.type_of_experiment]))
+                                config.get_filename(
+                                    filename='{}_predictions_{}_{}.csv'.format('_'.join(var_names), info['period'].label.lower(), var_name),
+                                    experiment=self.experiment_name,
+                                    subfolders=[self.type_of_experiment]))
 
-                        try:
-                            lab = 'Fin {}'.format(info['period'].label.lower())
-                            lines[lab] = plt.axvline(pd.to_datetime(info['period'].fecha, dayfirst=True), c='r',
-                                                     linestyle='-.', ymin=0,
-                                                     ymax=ymax / 2,
-                                                     label=lab)
-                        except:
-                            pass
+                            try:
+                                lab = 'Fin {}'.format(info['period'].label.lower())
+                                lines[lab] = temp_ax.axvline(pd.to_datetime(info['period'].fecha, dayfirst=True), c='r',
+                                                         linestyle='-.', ymin=0,
+                                                         ymax=ymax / 2,
+                                                         label=lab)
+                            except:
+                                pass
+
+                        temp_ax.grid(axis='x', color='gray', linestyle='-.', linewidth=1, alpha=0.65)
+                        temp_ax.legend(list(lines.values()), list(lines.keys()))
 
                     plt.tight_layout()
-                    plt.grid(axis='x', color='gray', linestyle='-.', linewidth=1, alpha=0.65)
-                    plt.legend(list(lines.values()), list(lines.keys()))
 
 
 def run_model(filename, experiment_name, type_of_experiment, countries, periods, death_threshold_2_begin, cumulative,

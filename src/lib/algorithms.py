@@ -184,8 +184,13 @@ def get_sorted_derivative_atoms2(sym_expression):
 
 def get_func_for_ode(sym_x_expression_list, sym_y_expression_list, regressors):
     symbols = list(set().union(*[sym_var.sym_expression.free_symbols for sym_var in sym_x_expression_list.data]))
-    assert len(symbols) == 1, "Only available for 1 dimensional domains: symbols={}".format(symbols)
-    symbol = symbols[0]
+    # assert len(symbols) <= 1, "Only available for 1 dimensional domains: symbols={}".format(symbols)
+    if len(symbols) == 1:
+        symbol = symbols[0]
+    elif len(symbols) == 0:
+        symbol = sympy.symbols('t')
+    else:
+        raise Exception("Only available for <= 1 dimensional domains: symbols={}".format(symbols))
 
     # associate the in-derivatives with the out-derivatives shifting 1 place.
     # derivatives_list = [get_sorted_derivative_atoms(sym_exp) for sym_exp in sym_x_expression_list]
@@ -222,7 +227,7 @@ def get_func_for_ode(sym_x_expression_list, sym_y_expression_list, regressors):
             for f, i in f2xindex_dict.items():
                 res[ix] = res[ix].subs({f: x[i]})
             # TODO: assumes that domain values in t are in the same order that the free symbols
-            res[ix] = res[ix].subs({symbol: t_val for t_val, symbol in zip([t], symbols)})
+            res[ix] = res[ix].subs({s: t_val for t_val, s in zip([t], symbols)})
             # res[ix] = np.nan
             res[ix] = float(res[ix])
         return res

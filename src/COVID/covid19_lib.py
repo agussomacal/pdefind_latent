@@ -107,7 +107,7 @@ class CovidExperimentSetting(ExperimentSetting):
                 continue
             country_data = country_data.sort_values(by='DateRep')
             if self.smoothe:
-                country_data[['Deaths', 'Cases']].apply(lambda c: savgol_filter(c, 5, 2)) # window size 51, polynomial order 3)
+                country_data[['Deaths', 'Cases']].apply(lambda c: savgol_filter(c, 10, 3)) # window size 51, polynomial order 3)
             if self.cumulative:
                 country_data['Deaths'] = country_data['Deaths'].cumsum()
                 country_data['Cases'] = country_data['Cases'].cumsum()
